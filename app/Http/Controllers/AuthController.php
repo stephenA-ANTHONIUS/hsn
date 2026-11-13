@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\User;
 
 class AuthController extends Controller
 {
@@ -30,7 +29,12 @@ class AuthController extends Controller
             'password.required' => 'Password wajib diisi.',
         ]);
 
-        if (Auth::attempt($credentials, $request->boolean('remember'))) {
+        // Hanya akun yang aktif yang boleh login
+        $loginCredentials = $credentials + [
+            'is_active' => true,
+        ];
+
+        if (Auth::attempt($loginCredentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
 
             return $this->redirectByRole();
@@ -38,7 +42,7 @@ class AuthController extends Controller
 
         return back()
             ->withErrors([
-                'email' => 'Email atau password yang dimasukkan salah.',
+                'email' => 'Email atau password salah, atau akun Anda sedang dinonaktifkan.',
             ])
             ->onlyInput('email');
     }
@@ -48,11 +52,26 @@ class AuthController extends Controller
     {
         $user = Auth::user();
 
-        if ($user->isKepalaToko()) {
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        // Memastikan akun masih aktif
+        if (!$user->is_active) {
+            Auth::logout();
+
+            return redirect()
+                ->route('login')
+                ->withErrors([
+                    'email' => 'Akun Anda sedang dinonaktifkan. Silakan hubungi Kepala Toko.',
+                ]);
+        }
+
+        if ($user->role === 'kepala_toko') {
             return redirect()->route('kepala-toko.dashboard');
         }
 
-        if ($user->isAdmin()) {
+        if ($user->role === 'admin') {
             return redirect()->route('admin.dashboard');
         }
 

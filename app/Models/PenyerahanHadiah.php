@@ -40,6 +40,7 @@ class PenyerahanHadiah extends Model
     {
         return $this->belongsTo(User::class, 'pengguna_id');
     }
+
     public function detailPenyerahanHadiah(): HasMany
     {
         return $this->hasMany(
@@ -47,4 +48,11 @@ class PenyerahanHadiah extends Model
             'penyerahan_hadiah_id'
         );
     }
-    }
+    public function riwayatPerubahan(): HasMany
+{
+    return $this->hasMany(
+        RiwayatPerubahanPenyerahanHadiah::class,
+        'penyerahan_hadiah_id'
+    );
+}
+}

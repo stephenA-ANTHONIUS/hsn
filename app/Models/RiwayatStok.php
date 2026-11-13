@@ -20,14 +20,6 @@ class RiwayatStok extends Model
         'keterangan',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'jumlah' => 'integer',
-            'referensi_id' => 'integer',
-        ];
-    }
-
     public function barang(): BelongsTo
     {
         return $this->belongsTo(Barang::class, 'barang_id');

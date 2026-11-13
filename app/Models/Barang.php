@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Barang extends Model
 {
@@ -61,5 +62,17 @@ class Barang extends Model
     public function riwayatStok(): HasMany
     {
         return $this->hasMany(RiwayatStok::class, 'barang_id');
+    }
+
+    // Relasi barang dengan hadiah
+    public function hadiah(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Hadiah::class,
+            'barang_hadiah',
+            'barang_id',
+            'hadiah_id'
+        )->withPivot('jumlah_hadiah')
+         ->withTimestamps();
     }
 }

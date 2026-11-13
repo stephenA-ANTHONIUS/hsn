@@ -21,6 +21,7 @@ class Servis extends Model
         'status_perbaikan',
         'biaya_jasa',
         'total_biaya',
+        'nominal_dibayar',
         'status_pembayaran',
         'keterangan',
     ];
@@ -31,6 +32,7 @@ class Servis extends Model
             'tanggal_servis' => 'date',
             'biaya_jasa' => 'decimal:2',
             'total_biaya' => 'decimal:2',
+            'nominal_dibayar' => 'decimal:2',
         ];
     }
 
