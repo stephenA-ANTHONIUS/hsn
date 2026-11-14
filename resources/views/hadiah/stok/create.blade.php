@@ -1,8 +1,10 @@
 @extends('layouts.app')
 
-@section('title', 'Penyerahan Hadiah')
+@section('title', 'Tambah Transaksi Stok Hadiah')
+@section('page-heading', 'Tambah Transaksi Stok Hadiah')
 
 @section('content')
+
 @php
     $prefix = request()->routeIs('admin.*') ? 'admin' : 'kepala-toko';
 @endphp
@@ -11,17 +13,23 @@
 
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h4 class="fw-bold mb-1">Penyerahan Hadiah</h4>
+            <h4 class="fw-bold mb-1">Tambah Transaksi Stok Hadiah</h4>
             <p class="text-muted mb-0">
-                Catat penyerahan hadiah berdasarkan transaksi pembelian pelanggan.
+                Catat penambahan atau penyesuaian stok hadiah.
             </p>
         </div>
 
-        <a href="{{ route($prefix . '.penyerahan-hadiah.index') }}"
+        <a href="{{ route($prefix . '.hadiah.stok.index') }}"
            class="btn btn-outline-secondary">
             Kembali
         </a>
     </div>
+
+    @if (session('success'))
+        <div class="alert alert-success">
+            {{ session('success') }}
+        </div>
+    @endif
 
     @if ($errors->any())
         <div class="alert alert-danger">
@@ -34,395 +42,258 @@
         </div>
     @endif
 
-    <form action="{{ route($prefix . '.penyerahan-hadiah.store') }}"
-          method="POST"
-          enctype="multipart/form-data"
-          id="formPenyerahan">
-        @csrf
+    @if ($hadiah->isEmpty())
 
-        {{-- INFORMASI PEMBELIAN --}}
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white py-3">
-                <h6 class="fw-bold mb-0">Informasi Pembelian</h6>
-            </div>
+        <div class="alert alert-warning">
+            <h6 class="fw-bold">Belum Ada Hadiah Aktif</h6>
+            <p class="mb-2">
+                Tambahkan data hadiah terlebih dahulu sebelum mencatat transaksi stok.
+            </p>
 
-            <div class="card-body">
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">
-                        Nota Penjualan <span class="text-danger">*</span>
-                    </label>
+            <a href="{{ route($prefix . '.hadiah.create') }}"
+               class="btn btn-success btn-sm">
+                Tambah Data Hadiah
+            </a>
+        </div>
 
-                    <select name="penjualan_id"
-                            id="penjualan_id"
-                            class="form-select"
-                            required>
-                        <option value="">Pilih nota penjualan</option>
+    @else
 
-                        @foreach ($transaksiPenjualan as $item)
-                            <option value="{{ $item['id'] }}"
-                                @selected(old('penjualan_id') == $item['id'])>
-                                {{ $item['nomor_nota'] }} -
-                                {{ $item['pelanggan'] }} -
-                                {{ $item['tanggal'] }}
-                            </option>
-                        @endforeach
-                    </select>
+        <form action="{{ route($prefix . '.hadiah.stok.store') }}"
+              method="POST">
 
-                    @if ($transaksiPenjualan->isEmpty())
-                        <small class="text-danger">
-                            Belum ada nota penjualan yang tersedia untuk penyerahan hadiah.
-                        </small>
-                    @endif
+            @csrf
+
+            <div class="card border-0 shadow-sm mb-4">
+
+                <div class="card-header bg-white py-3">
+                    <h6 class="fw-bold mb-0">Informasi Transaksi Stok</h6>
                 </div>
 
-                <div id="informasiPembelian"
-                     class="alert alert-light border d-none">
-                    <div class="row">
-                        <div class="col-md-4 mb-2">
-                            <small class="text-muted">Nomor Nota</small>
-                            <div class="fw-semibold" id="infoNota">-</div>
-                        </div>
+                <div class="card-body">
 
-                        <div class="col-md-4 mb-2">
-                            <small class="text-muted">Pelanggan</small>
-                            <div class="fw-semibold" id="infoPelanggan">-</div>
-                        </div>
+                    {{-- PILIH HADIAH --}}
+                    <div class="mb-3">
+                        <label for="hadiah_id" class="form-label fw-semibold">
+                            Nama Hadiah <span class="text-danger">*</span>
+                        </label>
 
-                        <div class="col-md-4 mb-2">
-                            <small class="text-muted">Tanggal Pembelian</small>
-                            <div class="fw-semibold" id="infoTanggal">-</div>
+                        <select name="hadiah_id"
+                                id="hadiah_id"
+                                class="form-select @error('hadiah_id') is-invalid @enderror"
+                                required>
+
+                            <option value="">Pilih hadiah</option>
+
+                            @foreach ($hadiah as $item)
+                                <option value="{{ $item->id }}"
+                                        data-stok="{{ $item->stok }}"
+                                    @selected(old('hadiah_id') == $item->id)>
+                                    {{ $item->kode_hadiah }} -
+                                    {{ $item->nama_hadiah }}
+                                </option>
+                            @endforeach
+
+                        </select>
+
+                        @error('hadiah_id')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    {{-- STOK SAAT INI --}}
+                    <div class="alert alert-light border mb-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Stok Saat Ini</span>
+                            <strong id="stokSaatIni">-</strong>
                         </div>
                     </div>
 
-                    <hr>
+                    {{-- JENIS TRANSAKSI --}}
+                    <div class="mb-3">
+                        <label for="jenis_transaksi"
+                               class="form-label fw-semibold">
+                            Jenis Transaksi <span class="text-danger">*</span>
+                        </label>
 
-                    <strong>Barang yang Dibeli</strong>
-                    <ul id="daftarBarang" class="mb-0 mt-2"></ul>
-                </div>
-            </div>
-        </div>
+                        <select name="jenis_transaksi"
+                                id="jenis_transaksi"
+                                class="form-select @error('jenis_transaksi') is-invalid @enderror"
+                                required>
 
-        {{-- HADIAH YANG DISERAHKAN --}}
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                <h6 class="fw-bold mb-0">Hadiah yang Diserahkan</h6>
+                            <option value="masuk"
+                                @selected(old('jenis_transaksi', 'masuk') === 'masuk')>
+                                Stok Masuk
+                            </option>
 
-                <button type="button"
-                        class="btn btn-sm btn-outline-success"
-                        id="tambahHadiah">
-                    + Tambah Hadiah
-                </button>
-            </div>
+                            <option value="penyesuaian"
+                                @selected(old('jenis_transaksi') === 'penyesuaian')>
+                                Penyesuaian Stok
+                            </option>
 
-            <div class="card-body">
-                <div class="alert alert-info">
-                    Pilihan hadiah akan dihitung berdasarkan barang dan jumlah
-                    pembelian. Jika memberikan hadiah di luar ketentuan,
-                    isi alasan pemberian tambahan pada kolom yang tersedia.
-                </div>
+                        </select>
 
-                <div class="table-responsive">
-                    <table class="table align-middle">
-                        <thead>
-                            <tr>
-                                <th width="35%">Nama Hadiah</th>
-                                <th width="15%">Stok Tersedia</th>
-                                <th width="15%">Jumlah</th>
-                                <th width="30%">Alasan Pemberian Tambahan</th>
-                                <th width="5%"></th>
-                            </tr>
-                        </thead>
+                        @error('jenis_transaksi')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
 
-                        <tbody id="daftarHadiah">
-                            <tr id="barisKosong">
-                                <td colspan="5"
-                                    class="text-center text-muted py-4">
-                                    Pilih nota penjualan untuk menampilkan
-                                    hadiah yang berhak diterima.
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+                        <small class="text-muted" id="keteranganJenis">
+                            Stok hadiah akan bertambah sesuai jumlah yang dimasukkan.
+                        </small>
+                    </div>
 
-        {{-- BUKTI PENYERAHAN --}}
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white py-3">
-                <h6 class="fw-bold mb-0">Bukti Penyerahan</h6>
-            </div>
+                    {{-- JUMLAH --}}
+                    <div class="mb-3">
+                        <label for="jumlah"
+                               class="form-label fw-semibold"
+                               id="labelJumlah">
+                            Jumlah Stok Masuk <span class="text-danger">*</span>
+                        </label>
 
-            <div class="card-body">
-                <div class="alert alert-warning">
-                    <strong>Perhatian:</strong>
-                    Foto bukti penyerahan wajib diunggah. Catatan penyerahan bersifat opsional.
-                    Jika jumlah hadiah melebihi hak pelanggan, alasan pemberian wajib diisi
-                    pada baris hadiah yang bersangkutan.
-                </div>
+                        <input type="number"
+                               name="jumlah"
+                               id="jumlah"
+                               class="form-control @error('jumlah') is-invalid @enderror"
+                               min="1"
+                               step="1"
+                               value="{{ old('jumlah', 1) }}"
+                               required>
 
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label fw-semibold">
-                            Tanggal Penyerahan <span class="text-danger">*</span>
+                        @error('jumlah')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+
+                        <small class="text-muted" id="bantuanJumlah">
+                            Masukkan jumlah hadiah yang masuk.
+                        </small>
+                    </div>
+
+                    {{-- TANGGAL --}}
+                    <div class="mb-3">
+                        <label for="tanggal_transaksi"
+                               class="form-label fw-semibold">
+                            Tanggal Transaksi <span class="text-danger">*</span>
                         </label>
 
                         <input type="date"
-                               name="tanggal_penyerahan"
-                               class="form-control"
-                               value="{{ old('tanggal_penyerahan', now()->format('Y-m-d')) }}"
+                               name="tanggal_transaksi"
+                               id="tanggal_transaksi"
+                               class="form-control @error('tanggal_transaksi') is-invalid @enderror"
+                               value="{{ old('tanggal_transaksi', now()->format('Y-m-d')) }}"
                                max="{{ now()->format('Y-m-d') }}"
                                required>
+
+                        @error('tanggal_transaksi')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
                     </div>
 
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label fw-semibold">
-                            Foto Bukti Penyerahan <span class="text-danger">*</span>
-                        </label>
-
-                        <input type="file"
-                               name="foto_bukti"
-                               id="foto_bukti"
-                               class="form-control"
-                               accept=".jpg,.jpeg,.png"
-                               required>
-
-                        <small class="text-muted">
-                            Format JPG, JPEG, atau PNG. Maksimal 2 MB.
-                        </small>
-                    </div>
-
-                    <div class="col-12">
-                        <label class="form-label fw-semibold">
-                            Catatan Penyerahan
+                    {{-- KETERANGAN --}}
+                    <div class="mb-3">
+                        <label for="keterangan"
+                               class="form-label fw-semibold">
+                            Keterangan
                         </label>
 
                         <textarea name="keterangan"
                                   id="keterangan"
-                                  class="form-control"
+                                  class="form-control @error('keterangan') is-invalid @enderror"
                                   rows="3"
-                                  placeholder="Contoh: Hadiah diserahkan langsung kepada pelanggan di toko">{{ old('keterangan') }}</textarea>
+                                  maxlength="2000"
+                                  placeholder="Masukkan keterangan transaksi jika diperlukan">{{ old('keterangan') }}</textarea>
+
+                        @error('keterangan')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
                     </div>
+
                 </div>
             </div>
-        </div>
 
-        {{-- TOMBOL --}}
-        <div class="d-flex justify-content-end gap-2 mb-4">
-            <a href="{{ route($prefix . '.penyerahan-hadiah.index') }}"
-               class="btn btn-light border">
-                Batal
-            </a>
+            <div class="d-flex justify-content-end gap-2 mb-4">
 
-            <button type="submit"
-                    class="btn btn-success"
-                    @disabled($transaksiPenjualan->isEmpty())>
-                Simpan Penyerahan Hadiah
-            </button>
-        </div>
-    </form>
+                <a href="{{ route($prefix . '.hadiah.stok.index') }}"
+                   class="btn btn-light border">
+                    Batal
+                </a>
+
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-save me-1"></i>
+                    Simpan Transaksi
+                </button>
+
+            </div>
+
+        </form>
+
+    @endif
+
 </div>
 
 <script>
-    const transaksiPenjualan = @json($transaksiPenjualan);
-    const daftarHadiahTersedia = @json($hadiah);
+document.addEventListener('DOMContentLoaded', function () {
 
-    const pilihanPenjualan = document.getElementById('penjualan_id');
-    const informasiPembelian = document.getElementById('informasiPembelian');
-    const daftarBarang = document.getElementById('daftarBarang');
-    const daftarHadiah = document.getElementById('daftarHadiah');
+    const pilihanHadiah = document.getElementById('hadiah_id');
+    const jenisTransaksi = document.getElementById('jenis_transaksi');
+    const jumlah = document.getElementById('jumlah');
 
-    let nomorBaris = 0;
+    const stokSaatIni = document.getElementById('stokSaatIni');
+    const labelJumlah = document.getElementById('labelJumlah');
+    const bantuanJumlah = document.getElementById('bantuanJumlah');
+    const keteranganJenis = document.getElementById('keteranganJenis');
 
-    function escapeHtml(value) {
-        return String(value ?? '').replace(/[&<>"']/g, char => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        })[char]);
+    if (!pilihanHadiah || !jenisTransaksi || !jumlah) {
+        return;
     }
 
-    function buatBarisHadiah(hadiahId = '', jumlah = 1, alasan = '') {
-        const index = nomorBaris++;
-        const row = document.createElement('tr');
+    function tampilkanStok() {
+        const pilihan = pilihanHadiah.selectedOptions[0];
 
-        const pilihan = daftarHadiahTersedia.map(hadiah => `
-            <option value="${hadiah.id}"
-                    data-stok="${hadiah.stok}"
-                    ${String(hadiah.id) === String(hadiahId) ? 'selected' : ''}>
-                ${escapeHtml(hadiah.nama_hadiah)}
-            </option>
-        `).join('');
-
-        row.innerHTML = `
-            <td>
-                <select name="hadiah[${index}][hadiah_id]"
-                        class="form-select pilih-hadiah"
-                        required>
-                    <option value="">Pilih hadiah</option>
-                    ${pilihan}
-                </select>
-            </td>
-
-            <td>
-                <span class="stok-hadiah text-muted">-</span>
-            </td>
-
-            <td>
-                <input type="number"
-                       name="hadiah[${index}][jumlah]"
-                       class="form-control"
-                       min="1"
-                       value="${jumlah}"
-                       required>
-            </td>
-
-            <td>
-                <input type="text"
-                       name="hadiah[${index}][keterangan]"
-                       class="form-control"
-                       maxlength="500"
-                       value="${escapeHtml(alasan)}"
-                       placeholder="Isi jika hadiah melebihi hak pelanggan">
-            </td>
-
-            <td>
-                <button type="button"
-                        class="btn btn-sm btn-outline-danger hapus-hadiah">
-                    Hapus
-                </button>
-            </td>
-        `;
-
-        daftarHadiah.appendChild(row);
-
-        const select = row.querySelector('.pilih-hadiah');
-
-        function tampilkanStok() {
-            const option = select.selectedOptions[0];
-
-            row.querySelector('.stok-hadiah').textContent =
-                option && option.value ? option.dataset.stok : '-';
-        }
-
-        select.addEventListener('change', tampilkanStok);
-
-        row.querySelector('.hapus-hadiah').addEventListener('click', () => {
-            row.remove();
-
-            if (!daftarHadiah.querySelector('tr')) {
-                tampilkanBarisKosong();
-            }
-        });
-
-        tampilkanStok();
-    }
-
-    function tampilkanBarisKosong() {
-        daftarHadiah.innerHTML = `
-            <tr id="barisKosong">
-                <td colspan="5"
-                    class="text-center text-muted py-4">
-                    Belum ada hadiah dipilih.
-                </td>
-            </tr>
-        `;
-    }
-
-    function pilihTransaksi(id) {
-        return transaksiPenjualan.find(item => String(item.id) === String(id));
-    }
-
-    function tampilkanTransaksi() {
-        const transaksi = pilihTransaksi(pilihanPenjualan.value);
-
-        daftarHadiah.innerHTML = '';
-        nomorBaris = 0;
-
-        if (!transaksi) {
-            informasiPembelian.classList.add('d-none');
-            tampilkanBarisKosong();
+        if (!pilihan || !pilihan.value) {
+            stokSaatIni.textContent = '-';
             return;
         }
 
-        informasiPembelian.classList.remove('d-none');
+        stokSaatIni.textContent =
+            Number(pilihan.dataset.stok).toLocaleString('id-ID');
+    }
 
-        document.getElementById('infoNota').textContent = transaksi.nomor_nota;
-        document.getElementById('infoPelanggan').textContent = transaksi.pelanggan;
-        document.getElementById('infoTanggal').textContent = transaksi.tanggal;
+    function aturJenisTransaksi() {
 
-        daftarBarang.innerHTML = '';
+        if (jenisTransaksi.value === 'masuk') {
 
-        const hakHadiah = new Map();
+            jumlah.min = 1;
 
-        transaksi.barang.forEach(barang => {
-            const li = document.createElement('li');
-            li.textContent = `${barang.nama} (${barang.jumlah} unit)`;
-            daftarBarang.appendChild(li);
+            labelJumlah.innerHTML =
+                'Jumlah Stok Masuk <span class="text-danger">*</span>';
 
-            barang.hadiah.forEach(hadiah => {
-                const jumlah =
-                    Number(barang.jumlah) * Number(hadiah.jumlah_per_unit);
+            bantuanJumlah.textContent =
+                'Masukkan jumlah hadiah yang akan ditambahkan ke stok.';
 
-                const data = hakHadiah.get(hadiah.id) || {
-                    id: hadiah.id,
-                    jumlah: 0
-                };
+            keteranganJenis.textContent =
+                'Stok hadiah akan bertambah sesuai jumlah yang dimasukkan.';
 
-                data.jumlah += jumlah;
-                hakHadiah.set(hadiah.id, data);
-            });
-        });
+        } else {
 
-        hakHadiah.forEach(hadiah => {
-            buatBarisHadiah(hadiah.id, hadiah.jumlah);
-        });
+            jumlah.min = 0;
 
-        if (daftarHadiah.children.length === 0) {
-            tampilkanBarisKosong();
+            labelJumlah.innerHTML =
+                'Jumlah Stok Fisik <span class="text-danger">*</span>';
+
+            bantuanJumlah.textContent =
+                'Masukkan jumlah stok fisik terbaru. Stok sistem akan disesuaikan dengan jumlah ini.';
+
+            keteranganJenis.textContent =
+                'Penyesuaian akan mengganti stok sistem dengan jumlah stok fisik terbaru.';
         }
     }
 
-    pilihanPenjualan.addEventListener('change', tampilkanTransaksi);
+    pilihanHadiah.addEventListener('change', tampilkanStok);
+    jenisTransaksi.addEventListener('change', aturJenisTransaksi);
 
-    document.getElementById('tambahHadiah').addEventListener('click', () => {
-        const kosong = document.getElementById('barisKosong');
+    tampilkanStok();
+    aturJenisTransaksi();
 
-        if (kosong) {
-            kosong.remove();
-        }
-
-        buatBarisHadiah();
-    });
-
-    document.getElementById('formPenyerahan')
-        .addEventListener('submit', function (event) {
-            const rows = daftarHadiah.querySelectorAll('tr');
-
-            const foto =
-                document.getElementById('foto_bukti').files.length > 0;
-
-            if (
-                !pilihanPenjualan.value ||
-                rows.length === 0 ||
-                document.getElementById('barisKosong')
-            ) {
-                event.preventDefault();
-                alert('Pilih nota penjualan dan minimal satu hadiah.');
-                return;
-            }
-
-            if (!foto) {
-                event.preventDefault();
-                alert('Foto bukti penyerahan wajib diunggah.');
-                document.getElementById('foto_bukti').focus();
-            }
-        });
-
-    if (pilihanPenjualan.value) {
-        tampilkanTransaksi();
-    }
+});
 </script>
+
 @endsection
