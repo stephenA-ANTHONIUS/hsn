@@ -22,3 +22,7 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+# Keep local environment secrets out of Git
+/.env
+/.env.*
+!/.env.example

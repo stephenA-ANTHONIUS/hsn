@@ -11,6 +11,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+
+        // Mempercayai proxy dari platform hosting agar HTTPS terdeteksi benar.
+        $middleware->trustProxies(at: '*');
+
+        // Middleware untuk membatasi akses berdasarkan role pengguna.
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
         ]);
