@@ -1,6 +1,10 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
+
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BarangController;
 use App\Http\Controllers\BarangMasukController;
@@ -17,7 +21,10 @@ use App\Http\Controllers\RiwayatPerubahanBarangController;
 use App\Http\Controllers\ServisController;
 use App\Http\Controllers\TransaksiStokHadiahController;
 
-// Halaman login
+// =====================================================
+// LOGIN
+// =====================================================
+
 Route::get('/', function () {
     return redirect()->route('login');
 });
@@ -28,35 +35,129 @@ Route::get('/login', [AuthController::class, 'showLogin'])
 Route::post('/login', [AuthController::class, 'login'])
     ->name('login.process');
 
-// Logout
+// =====================================================
+// LOGOUT
+// =====================================================
+
 Route::post('/logout', [AuthController::class, 'logout'])
     ->middleware('auth')
     ->name('logout');
 
 // =====================================================
+// PROFIL AKUN
+// =====================================================
+
+Route::middleware(['auth', 'auth.session'])->group(function () {
+
+    // Melihat profil akun sendiri.
+    Route::get('/akun-saya', function () {
+        return view('profile.show', [
+            'user' => auth()->user(),
+        ]);
+    })->name('profile.show');
+
+    // Mengubah nama dan email sendiri: Kepala Toko saja.
+    Route::put('/akun-saya', function (Request $request) {
+
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($user->id),
+            ],
+        ], [
+            'name.required' => 'Nama lengkap wajib diisi.',
+            'name.max' => 'Nama maksimal 255 karakter.',
+            'email.required' => 'Email wajib diisi.',
+            'email.email' => 'Format email tidak valid.',
+            'email.max' => 'Email maksimal 255 karakter.',
+            'email.unique' => 'Email sudah digunakan oleh akun lain.',
+        ]);
+
+        $user->name = $validated['name'];
+        $user->email = $validated['email'];
+        $user->save();
+
+        return redirect()
+            ->route('profile.show')
+            ->with('success', 'Nama dan email akun berhasil diperbarui.');
+
+    })->middleware('role:kepala_toko')
+      ->name('profile.update');
+
+    // Mengubah password sendiri: Kepala Toko saja.
+    Route::put('/akun-saya/password', function (Request $request) {
+
+        $validated = $request->validate([
+            'current_password' => [
+                'required',
+                'current_password',
+            ],
+            'password' => [
+                'required',
+                'string',
+                'min:8',
+                'confirmed',
+                'different:current_password',
+            ],
+        ], [
+            'current_password.required' => 'Password lama wajib diisi.',
+            'current_password.current_password' => 'Password lama tidak sesuai.',
+            'password.required' => 'Password baru wajib diisi.',
+            'password.min' => 'Password baru minimal 8 karakter.',
+            'password.confirmed' => 'Konfirmasi password tidak cocok.',
+            'password.different' => 'Password baru harus berbeda dari password lama.',
+        ]);
+
+        $user = $request->user();
+
+        $user->forceFill([
+            'password' => Hash::make($validated['password']),
+        ])->save();
+
+        return redirect()
+            ->route('profile.show')
+            ->with('success', 'Password akun berhasil diperbarui.');
+
+    })->middleware('role:kepala_toko')
+      ->name('profile.password.update');
+
+});
+
+// =====================================================
 // DASHBOARD DAN FITUR KEPALA TOKO
 // =====================================================
 
-Route::middleware(['auth', 'role:kepala_toko'])
+Route::middleware(['auth', 'auth.session', 'role:kepala_toko'])
     ->prefix('kepala-toko')
     ->name('kepala-toko.')
     ->group(function () {
 
+        // Dashboard
         Route::get('/dashboard', function () {
             return view('dashboards.kepala-toko');
         })->name('dashboard');
+
         // Laporan
-Route::prefix('laporan')
-    ->name('laporan.')
-    ->controller(LaporanController::class)
-    ->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::get('/barang-masuk', 'barangMasuk')->name('barang-masuk');
-        Route::get('/barang-keluar', 'barangKeluar')->name('barang-keluar');
-        Route::get('/riwayat-transaksi', 'riwayatTransaksi')->name('riwayat-transaksi');
-        Route::get('/stok', 'stok')->name('stok');
-        Route::get('/penjualan-kotor', 'penjualanKotor')->name('penjualan-kotor');
-    });
+        Route::prefix('laporan')
+            ->name('laporan.')
+            ->controller(LaporanController::class)
+            ->group(function () {
+                Route::get('/', 'index')->name('index');
+                Route::get('/barang-masuk', 'barangMasuk')->name('barang-masuk');
+                Route::get('/barang-keluar', 'barangKeluar')->name('barang-keluar');
+                Route::get('/riwayat-transaksi', 'riwayatTransaksi')->name('riwayat-transaksi');
+                Route::get('/stok', 'stok')->name('stok');
+                Route::get('/penjualan-kotor', 'penjualanKotor')->name('penjualan-kotor');
+            });
 
         // Kategori barang
         Route::resource('kategori-barang', KategoriBarangController::class)
@@ -71,11 +172,12 @@ Route::prefix('laporan')
             ->parameters([
                 'satuan-barang' => 'satuanBarang',
             ]);
-            // Riwayat perubahan barang
-Route::get('/barang/riwayat-perubahan', [
-    RiwayatPerubahanBarangController::class,
-    'index'
-])->name('barang.riwayat');
+
+        // Riwayat perubahan barang
+        Route::get('/barang/riwayat-perubahan', [
+            RiwayatPerubahanBarangController::class,
+            'index'
+        ])->name('barang.riwayat');
 
         // Pemasok
         Route::resource('pemasok', PemasokController::class)
@@ -145,9 +247,8 @@ Route::get('/barang/riwayat-perubahan', [
             ->group(function () {
                 Route::get('/', 'index')->name('index');
                 Route::get('/create', 'create')->name('create');
-                Route::post('/', 'store')->name('store');    
-                Route::get('/{penyerahanHadiah}/riwayat', 'riwayat')
-    ->name('riwayat');
+                Route::post('/', 'store')->name('store');
+                Route::get('/{penyerahanHadiah}/riwayat', 'riwayat')->name('riwayat');
                 Route::get('/{penyerahanHadiah}/edit', 'edit')->name('edit');
                 Route::put('/{penyerahanHadiah}', 'update')->name('update');
             });
@@ -184,35 +285,37 @@ Route::get('/barang/riwayat-perubahan', [
                 Route::post('/{servis}/pembayaran', 'storePembayaran')
                     ->name('pembayaran');
             });
-            Route::patch('/servis/{servis}/data', [ServisController::class, 'updateData'])
-    ->name('servis.update-data');
+
+        Route::patch('/servis/{servis}/data', [ServisController::class, 'updateData'])
+            ->name('servis.update-data');
     });
 
 // =====================================================
 // DASHBOARD DAN FITUR ADMIN
 // =====================================================
 
-Route::middleware(['auth', 'role:admin'])
+Route::middleware(['auth', 'auth.session', 'role:admin'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
 
+        // Dashboard
         Route::get('/dashboard', function () {
             return view('dashboards.admin');
         })->name('dashboard');
 
         // Laporan
-Route::prefix('laporan')
-    ->name('laporan.')
-    ->controller(LaporanController::class)
-    ->group(function () {
-        Route::get('/', 'index')->name('index');
-        Route::get('/barang-masuk', 'barangMasuk')->name('barang-masuk');
-        Route::get('/barang-keluar', 'barangKeluar')->name('barang-keluar');
-        Route::get('/riwayat-transaksi', 'riwayatTransaksi')->name('riwayat-transaksi');
-        Route::get('/stok', 'stok')->name('stok');
-        Route::get('/penjualan-kotor', 'penjualanKotor')->name('penjualan-kotor');
-    });
+        Route::prefix('laporan')
+            ->name('laporan.')
+            ->controller(LaporanController::class)
+            ->group(function () {
+                Route::get('/', 'index')->name('index');
+                Route::get('/barang-masuk', 'barangMasuk')->name('barang-masuk');
+                Route::get('/barang-keluar', 'barangKeluar')->name('barang-keluar');
+                Route::get('/riwayat-transaksi', 'riwayatTransaksi')->name('riwayat-transaksi');
+                Route::get('/stok', 'stok')->name('stok');
+                Route::get('/penjualan-kotor', 'penjualanKotor')->name('penjualan-kotor');
+            });
 
         // Barang masuk
         Route::get('/barang-masuk', [BarangMasukController::class, 'index'])
@@ -246,11 +349,12 @@ Route::prefix('laporan')
             ->parameters([
                 'satuan-barang' => 'satuanBarang',
             ]);
-            // Riwayat perubahan barang
-Route::get('/barang/riwayat-perubahan', [
-    RiwayatPerubahanBarangController::class,
-    'index'
-])->name('barang.riwayat');
+
+        // Riwayat perubahan barang
+        Route::get('/barang/riwayat-perubahan', [
+            RiwayatPerubahanBarangController::class,
+            'index'
+        ])->name('barang.riwayat');
 
         // Pemasok
         Route::resource('pemasok', PemasokController::class)
@@ -292,8 +396,7 @@ Route::get('/barang/riwayat-perubahan', [
                 Route::get('/', 'index')->name('index');
                 Route::get('/create', 'create')->name('create');
                 Route::post('/', 'store')->name('store');
-                Route::get('/{penyerahanHadiah}/riwayat', 'riwayat')
-    ->name('riwayat');
+                Route::get('/{penyerahanHadiah}/riwayat', 'riwayat')->name('riwayat');
                 Route::get('/{penyerahanHadiah}/edit', 'edit')->name('edit');
                 Route::put('/{penyerahanHadiah}', 'update')->name('update');
             });
@@ -330,6 +433,7 @@ Route::get('/barang/riwayat-perubahan', [
                 Route::post('/{servis}/pembayaran', 'storePembayaran')
                     ->name('pembayaran');
             });
-            Route::patch('/servis/{servis}/data', [ServisController::class, 'updateData'])
-    ->name('servis.update-data');
+
+        Route::patch('/servis/{servis}/data', [ServisController::class, 'updateData'])
+            ->name('servis.update-data');
     });

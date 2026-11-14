@@ -36,16 +36,17 @@
                     </div>
 
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">Email</label>
+                        <label class="form-label">Email Admin</label>
 
                         <input type="email"
-                               class="form-control"
-                               value="{{ $pengguna->email }}"
-                               disabled>
+                               name="email"
+                               class="form-control @error('email') is-invalid @enderror"
+                               value="{{ old('email', $pengguna->email) }}"
+                               required>
 
-                        <small class="text-muted">
-                            Email digunakan sebagai identitas login dan tidak dapat diubah di halaman ini.
-                        </small>
+                        @error('email')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
                     </div>
                 </div>
 

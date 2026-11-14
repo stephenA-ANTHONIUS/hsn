@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
 class PenggunaController extends Controller
@@ -91,17 +92,27 @@ class PenggunaController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($pengguna->id),
+            ],
             'password' => [
                 'nullable',
                 'confirmed',
                 Password::min(8),
             ],
         ], [
-            'name.required' => 'Nama pengguna wajib diisi.',
+            'name.required' => 'Nama Admin wajib diisi.',
+            'email.required' => 'Email Admin wajib diisi.',
+            'email.email' => 'Format email tidak valid.',
+            'email.unique' => 'Email sudah digunakan oleh akun lain.',
             'password.confirmed' => 'Konfirmasi password tidak sesuai.',
         ]);
 
         $pengguna->name = $validated['name'];
+        $pengguna->email = $validated['email'];
 
         if (!empty($validated['password'])) {
             $pengguna->password = $validated['password'];

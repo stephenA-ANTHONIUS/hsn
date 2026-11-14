@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="id">
 
@@ -182,9 +181,30 @@
             gap: 12px;
         }
 
+        /* PROFILE LINK */
+
+        .user-profile-link {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            min-width: 0;
+            padding: 7px 11px;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            color: var(--text);
+            text-decoration: none;
+            transition: background .2s, border-color .2s;
+        }
+
+        .user-profile-link:hover {
+            color: var(--green-dark);
+            background: #F3F6F3;
+            border-color: #E2E9E3;
+        }
+
         .user-avatar {
-            width: 38px;
-            height: 38px;
+            width: 39px;
+            height: 39px;
             border-radius: 50%;
             background: #E7EEE9;
             color: var(--green-main);
@@ -193,16 +213,29 @@
             justify-content: center;
             font-weight: bold;
             flex-shrink: 0;
+            border: 1px solid #DCE7DE;
         }
 
         .user-name {
             font-weight: bold;
             font-size: 13px;
+            line-height: 1.4;
         }
 
         .user-role {
             font-size: 11px;
             color: var(--muted);
+            margin-top: 2px;
+        }
+
+        .user-profile-chevron {
+            color: #87938A;
+            font-size: 12px;
+            margin-left: 3px;
+        }
+
+        .user-profile-link:hover .user-profile-chevron {
+            color: var(--green-main);
         }
 
         .content-area {
@@ -270,7 +303,12 @@
 
             .user-info {
                 width: 100%;
-                justify-content: flex-start;
+                justify-content: space-between;
+                flex-wrap: wrap;
+            }
+
+            .user-profile-link {
+                padding-left: 0;
             }
 
             .content-area {
@@ -294,7 +332,6 @@
 </head>
 
 <body>
-
 
 @php
     $user = auth()->user();
@@ -324,11 +361,10 @@
                         'route' => 'kepala-toko.barang.index',
                     ],
                     [
-    'name' => 'Riwayat Perubahan Barang',
-    'icon' => 'bi-clock-history',
-    'route' => 'kepala-toko.barang.riwayat',
-],
-
+                        'name' => 'Riwayat Perubahan Barang',
+                        'icon' => 'bi-clock-history',
+                        'route' => 'kepala-toko.barang.riwayat',
+                    ],
                     [
                         'name' => 'Kategori Barang',
                         'icon' => 'bi-tags',
@@ -402,11 +438,11 @@
             [
                 'label' => 'LAPORAN',
                 'items' => [
-[
-    'name' => 'Laporan',
-    'icon' => 'bi-file-earmark-bar-graph',
-    'route' => 'kepala-toko.laporan.index',
-],
+                    [
+                        'name' => 'Laporan',
+                        'icon' => 'bi-file-earmark-bar-graph',
+                        'route' => 'kepala-toko.laporan.index',
+                    ],
                 ],
             ],
         ],
@@ -457,11 +493,11 @@
                         'icon' => 'bi-gift',
                         'route' => 'admin.penyerahan-hadiah.index',
                     ],
-[
-    'name' => 'Laporan',
-    'icon' => 'bi-file-earmark-bar-graph',
-    'route' => 'admin.laporan.index',
-],
+                    [
+                        'name' => 'Laporan',
+                        'icon' => 'bi-file-earmark-bar-graph',
+                        'route' => 'admin.laporan.index',
+                    ],
                 ],
             ],
         ],
@@ -470,11 +506,9 @@
     $menuGroups = $navigationByRole[$role] ?? [];
 @endphp
 
-
 <div class="app-wrapper">
 
     <!-- SIDEBAR -->
-
     <aside class="sidebar">
 
         <div class="sidebar-brand">
@@ -549,13 +583,12 @@
 
         <div class="sidebar-footer">
             Sistem Informasi Manajemen HSN<br>
-            © {{ date('Y') }} HSN Service Perfection
+            &copy; {{ date('Y') }} HSN Service Perfection
         </div>
 
     </aside>
 
     <!-- AREA UTAMA -->
-
     <main class="main-area">
 
         <header class="topbar">
@@ -566,23 +599,33 @@
 
             <div class="user-info">
 
-                <div class="user-avatar">
-                    {{ strtoupper(substr($user->name, 0, 1)) }}
-                </div>
+                {{-- IDENTITAS AKUN MENUJU HALAMAN PROFIL --}}
+                <a href="{{ route('profile.show') }}"
+                   class="user-profile-link"
+                   aria-label="Lihat profil akun {{ $user->name }}">
 
-                <div>
-                    <div class="user-name">
-                        {{ $user->name }}
+                    <div class="user-avatar">
+                        {{ strtoupper(substr($user->name, 0, 1)) }}
                     </div>
 
-                    <div class="user-role">
-                        {{ $role === 'kepala_toko' ? 'Kepala Toko' : 'Admin' }}
-                    </div>
-                </div>
+                    <div>
+                        <div class="user-name">
+                            {{ $user->name }}
+                        </div>
 
+                        <div class="user-role">
+                            {{ $role === 'kepala_toko' ? 'Kepala Toko' : 'Admin' }}
+                        </div>
+                    </div>
+
+                    <i class="bi bi-chevron-down user-profile-chevron"></i>
+
+                </a>
+
+                {{-- LOGOUT TETAP TERPISAH --}}
                 <form action="{{ route('logout') }}"
                       method="POST"
-                      class="ms-2">
+                      class="ms-1">
 
                     @csrf
 
