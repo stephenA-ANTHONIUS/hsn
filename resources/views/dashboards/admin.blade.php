@@ -47,13 +47,6 @@
             'icon' => 'bi-gift-fill',
             'route' => 'admin.penyerahan-hadiah.index',
         ],
-        [
-            'title' => 'Laporan',
-            'description' => 'Lihat informasi barang masuk, barang keluar, stok, serta riwayat transaksi toko.',
-            'category' => 'Informasi operasional',
-            'icon' => 'bi-file-earmark-bar-graph',
-            'route' => 'admin.laporan.index',
-        ],
     ];
 @endphp
 
