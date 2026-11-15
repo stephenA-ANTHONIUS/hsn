@@ -493,11 +493,6 @@
                         'icon' => 'bi-gift',
                         'route' => 'admin.penyerahan-hadiah.index',
                     ],
-                    [
-                        'name' => 'Laporan',
-                        'icon' => 'bi-file-earmark-bar-graph',
-                        'route' => 'admin.laporan.index',
-                    ],
                 ],
             ],
         ],

@@ -304,18 +304,6 @@ Route::middleware(['auth', 'auth.session', 'role:admin'])
             return view('dashboards.admin');
         })->name('dashboard');
 
-        // Laporan
-        Route::prefix('laporan')
-            ->name('laporan.')
-            ->controller(LaporanController::class)
-            ->group(function () {
-                Route::get('/', 'index')->name('index');
-                Route::get('/barang-masuk', 'barangMasuk')->name('barang-masuk');
-                Route::get('/barang-keluar', 'barangKeluar')->name('barang-keluar');
-                Route::get('/riwayat-transaksi', 'riwayatTransaksi')->name('riwayat-transaksi');
-                Route::get('/stok', 'stok')->name('stok');
-                Route::get('/penjualan-kotor', 'penjualanKotor')->name('penjualan-kotor');
-            });
 
         // Barang masuk
         Route::get('/barang-masuk', [BarangMasukController::class, 'index'])
