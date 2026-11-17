@@ -29,6 +29,10 @@ class PenjualanController extends Controller
      */
     private function pastikanBisaDiedit(Penjualan $penjualan): void
     {
+        if ($penjualan->tanggal_pembatalan !== null) {
+            abort(403, 'Transaksi penjualan sudah dibatalkan dan tidak dapat diedit.');
+        }
+
         if (!$penjualan->tanggal_penjualan->isToday()) {
             abort(403, 'Transaksi hanya dapat diedit pada tanggal transaksi dibuat.');
         }
@@ -39,10 +43,10 @@ class PenjualanController extends Controller
      */
     private function ambilSnapshot(Penjualan $penjualan): array
     {
-       $penjualan->load([
-    'detailPenjualan.barang',
-    'pelanggan',
-]);
+        $penjualan->load([
+            'detailPenjualan.barang',
+            'pelanggan',
+        ]);
 
         return [
             'nomor_nota' => $penjualan->nomor_nota,
@@ -54,6 +58,9 @@ class PenjualanController extends Controller
             'metode_pembayaran' => $penjualan->metode_pembayaran,
             'status_pembayaran' => $penjualan->status_pembayaran,
             'keterangan' => $penjualan->keterangan,
+            'tanggal_pembatalan' => $penjualan->tanggal_pembatalan?->format('Y-m-d H:i:s'),
+            'dibatalkan_oleh' => $penjualan->dibatalkan_oleh,
+            'alasan_pembatalan' => $penjualan->alasan_pembatalan,
             'detail' => $penjualan->detailPenjualan
                 ->map(function ($detail) {
                     return [
@@ -77,8 +84,12 @@ class PenjualanController extends Controller
         $penjualan = Penjualan::with([
             'pelanggan',
             'pengguna',
+            'penggunaPembatalan',
         ])
-            ->withCount('detailPenjualan')
+            ->withCount([
+                'detailPenjualan',
+                'penyerahanHadiah',
+            ])
             ->when($request->search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('nomor_nota', 'like', "%{$search}%")
@@ -139,7 +150,6 @@ class PenjualanController extends Controller
         ));
     }
 
-
     /**
      * Menyimpan transaksi penjualan dengan pembayaran lunas.
      */
@@ -153,7 +163,7 @@ class PenjualanController extends Controller
             'tanggal_penjualan' => [
                 'required',
                 'date',
-                'before_or_equal:today',
+                'date_equals:' . now()->toDateString(),
             ],
             'metode_pembayaran' => [
                 'required',
@@ -179,6 +189,8 @@ class PenjualanController extends Controller
                 'integer',
                 'min:1',
             ],
+        ], [
+            'tanggal_penjualan.date_equals' => 'Tanggal penjualan harus menggunakan tanggal hari ini.',
         ]);
 
         DB::transaction(function () use ($validated) {
@@ -569,6 +581,162 @@ class PenjualanController extends Controller
     }
 
     /**
+     * Membatalkan transaksi penjualan.
+     *
+     * Pembatalan hanya diperbolehkan maksimal 15 hari kalender
+     * sejak tanggal penjualan. Stok dikembalikan satu kali.
+     */
+    public function batalkan(Request $request, Penjualan $penjualan)
+    {
+        $validated = $request->validate([
+            'alasan_pembatalan' => [
+                'required',
+                'string',
+                'max:2000',
+            ],
+        ], [
+            'alasan_pembatalan.required' =>
+                'Alasan pembatalan wajib diisi.',
+            'alasan_pembatalan.max' =>
+                'Alasan pembatalan maksimal 2.000 karakter.',
+        ]);
+
+        DB::transaction(function () use ($validated, $penjualan) {
+
+            // Mengunci transaksi agar tidak dibatalkan dua kali.
+            $transaksi = Penjualan::whereKey($penjualan->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($transaksi->tanggal_pembatalan !== null) {
+                throw ValidationException::withMessages([
+                    'alasan_pembatalan' =>
+                        'Transaksi ini sudah dibatalkan sebelumnya.',
+                ]);
+            }
+
+            // Batas pembatalan: hari ini sampai 15 hari kalender sebelumnya.
+            $tanggalPenjualan = \Illuminate\Support\Carbon::parse(
+                $transaksi->tanggal_penjualan
+            )->startOfDay();
+
+            $hariIni = now()->startOfDay();
+            $batasTanggalPembatalan = $hariIni->copy()->subDays(15);
+
+            if (
+                $tanggalPenjualan->gt($hariIni)
+                || $tanggalPenjualan->lt($batasTanggalPembatalan)
+            ) {
+                throw ValidationException::withMessages([
+                    'alasan_pembatalan' =>
+                        'Pembatalan hanya dapat dilakukan dalam waktu maksimal 15 hari sejak tanggal penjualan.',
+                ]);
+            }
+
+            // Hadiah yang sudah diserahkan tidak dapat dibatalkan
+            // melalui mekanisme pembatalan penjualan.
+            if ($transaksi->penyerahanHadiah()->exists()) {
+                throw ValidationException::withMessages([
+                    'alasan_pembatalan' =>
+                        'Penjualan tidak dapat dibatalkan karena hadiah sudah diserahkan kepada pelanggan.',
+                ]);
+            }
+
+            $detail = $transaksi->detailPenjualan()
+                ->orderBy('barang_id')
+                ->get();
+
+            if ($detail->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'alasan_pembatalan' =>
+                        'Detail barang penjualan tidak ditemukan. Pembatalan tidak dapat diproses.',
+                ]);
+            }
+
+            // Snapshot sebelum pembatalan.
+            $dataSebelum = $this->ambilSnapshot($transaksi);
+
+            // Mengelompokkan jumlah berdasarkan barang.
+            $jumlahBarang = $detail
+                ->groupBy('barang_id')
+                ->map(function ($items) {
+                    return (int) $items->sum('jumlah');
+                });
+
+            // Mengunci seluruh barang dengan urutan ID.
+            $barangTerkunci = Barang::whereIn(
+                'id',
+                $jumlahBarang->keys()
+            )
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            if ($barangTerkunci->count() !== $jumlahBarang->count()) {
+                throw ValidationException::withMessages([
+                    'alasan_pembatalan' =>
+                        'Sebagian data barang tidak ditemukan. Stok tidak dapat dikembalikan.',
+                ]);
+            }
+
+            // Mengembalikan stok setiap barang.
+            foreach ($jumlahBarang as $barangId => $jumlah) {
+
+                $barang = $barangTerkunci->get($barangId);
+
+                $barang->increment('stok', $jumlah);
+
+                RiwayatStok::create([
+                    'barang_id' => $barang->id,
+                    'pengguna_id' => Auth::id(),
+                    'jenis_transaksi' => 'penjualan',
+                    'jenis_perubahan' => 'masuk',
+                    'jumlah' => $jumlah,
+                    'referensi_tabel' => 'penjualan',
+                    'referensi_id' => $transaksi->id,
+                    'keterangan' =>
+                        'Pengembalian stok akibat pembatalan penjualan nota '
+                        . $transaksi->nomor_nota,
+                ]);
+            }
+
+            // Tandai transaksi sebagai dibatalkan.
+            // Nominal asli tetap disimpan sebagai riwayat transaksi.
+            $transaksi->update([
+                'tanggal_pembatalan' => now(),
+                'dibatalkan_oleh' => Auth::id(),
+                'alasan_pembatalan' => trim($validated['alasan_pembatalan']),
+            ]);
+
+            // Snapshot setelah pembatalan.
+            $transaksi->refresh();
+
+            $dataSesudah = $this->ambilSnapshot($transaksi);
+
+            // Catat pembatalan dalam riwayat perubahan.
+            RiwayatPerubahanPenjualan::create([
+                'penjualan_id' => $transaksi->id,
+                'pengguna_id' => Auth::id(),
+                'data_sebelum' => $dataSebelum,
+                'data_sesudah' => $dataSesudah,
+                'keterangan' =>
+                    'Pembatalan transaksi penjualan nota '
+                    . $transaksi->nomor_nota
+                    . '. Alasan: '
+                    . $validated['alasan_pembatalan'],
+            ]);
+        });
+
+        return redirect()
+            ->route($this->routePrefix() . '.penjualan.index')
+            ->with(
+                'success',
+                'Transaksi berhasil dibatalkan. Stok barang telah dikembalikan dan pembatalan sudah dicatat dalam riwayat.'
+            );
+    }
+
+    /**
      * Menampilkan riwayat perubahan transaksi.
      */
     public function riwayat(Penjualan $penjualan)
@@ -592,6 +760,7 @@ class PenjualanController extends Controller
         $penjualan->load([
             'pelanggan',
             'pengguna',
+            'penggunaPembatalan',
             'detailPenjualan.barang.satuan',
         ]);
 

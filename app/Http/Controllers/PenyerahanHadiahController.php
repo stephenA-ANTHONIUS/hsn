@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
 use Throwable;
 
 class PenyerahanHadiahController extends Controller
@@ -76,9 +77,9 @@ class PenyerahanHadiahController extends Controller
             'pelanggan',
             'detailPenjualan.barang.hadiah',
         ])
-            ->whereDate('tanggal_penjualan', today())
-            ->whereDoesntHave('penyerahanHadiah')
-            ->latest('tanggal_penjualan')
+->whereDate('tanggal_penjualan', today())
+->whereNull('tanggal_pembatalan')
+->whereDoesntHave('penyerahanHadiah')
             ->get();
 
         $transaksiPenjualan = $this->formatTransaksiPenjualan($penjualan);
@@ -104,11 +105,11 @@ class PenyerahanHadiahController extends Controller
                 'integer',
                 'exists:penjualan,id',
             ],
-            'tanggal_penyerahan' => [
-                'required',
-                'date',
-                'before_or_equal:today',
-            ],
+'tanggal_penyerahan' => [
+    'required',
+    'date',
+    'date_equals:' . now()->toDateString(),
+],
             'foto_bukti' => [
                 'required',
                 'image',
@@ -156,6 +157,8 @@ class PenyerahanHadiahController extends Controller
                 'Pilih minimal satu hadiah.',
             'hadiah.*.hadiah_id.distinct' =>
                 'Hadiah yang sama tidak boleh dipilih lebih dari satu kali.',
+                'tanggal_penyerahan.date_equals' =>
+    'Tanggal penyerahan harus menggunakan tanggal hari ini.',
         ]);
 
         $fotoPath = null;
@@ -169,6 +172,12 @@ class PenyerahanHadiahController extends Controller
                 $penjualan = Penjualan::with('detailPenjualan.barang.hadiah')
                     ->lockForUpdate()
                     ->findOrFail($validated['penjualan_id']);
+                    if ($penjualan->tanggal_pembatalan !== null) {
+    throw ValidationException::withMessages([
+        'penjualan_id' =>
+            'Penjualan sudah dibatalkan. Hadiah tidak dapat diserahkan untuk transaksi ini.',
+    ]);
+}
 
                 if (
                     PenyerahanHadiah::where(
@@ -320,11 +329,14 @@ class PenyerahanHadiahController extends Controller
     public function update(Request $request, PenyerahanHadiah $penyerahanHadiah)
     {
         $validated = $request->validate([
-            'tanggal_penyerahan' => [
-                'required',
-                'date',
-                'before_or_equal:today',
-            ],
+'tanggal_penyerahan' => [
+    'required',
+    'date',
+    Rule::in([
+        now()->toDateString(),
+        $penyerahanHadiah->tanggal_penyerahan->toDateString(),
+    ]),
+],
             'foto_bukti' => [
                 'nullable',
                 'image',
@@ -370,6 +382,8 @@ class PenyerahanHadiahController extends Controller
                 'Pilih minimal satu hadiah.',
             'hadiah.*.hadiah_id.distinct' =>
                 'Hadiah yang sama tidak boleh dipilih lebih dari satu kali.',
+                'tanggal_penyerahan.in' =>
+    'Tanggal penyerahan hanya boleh menggunakan tanggal hari ini atau mempertahankan tanggal transaksi lama.',
         ]);
 
         $penyerahanHadiah->load([

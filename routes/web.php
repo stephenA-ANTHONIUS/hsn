@@ -265,6 +265,7 @@ Route::middleware(['auth', 'auth.session', 'role:kepala_toko'])
                 Route::put('/{penjualan}', 'update')->name('update');
                 Route::get('/{penjualan}/riwayat', 'riwayat')->name('riwayat');
                 Route::get('/{penjualan}/nota', 'nota')->name('nota');
+                Route::patch('/{penjualan}/batal', 'batalkan')->name('batalkan');
             });
 
         // Servis
@@ -401,6 +402,7 @@ Route::middleware(['auth', 'auth.session', 'role:admin'])
                 Route::put('/{penjualan}', 'update')->name('update');
                 Route::get('/{penjualan}/riwayat', 'riwayat')->name('riwayat');
                 Route::get('/{penjualan}/nota', 'nota')->name('nota');
+                Route::patch('/{penjualan}/batal', 'batalkan')->name('batalkan');
             });
 
         // Servis

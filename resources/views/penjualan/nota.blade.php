@@ -39,6 +39,37 @@
             font-weight: bold;
         }
 
+        .status-batal {
+            border: 2px solid #dc3545;
+            color: #dc3545;
+            padding: 12px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+
+        .informasi-pembatalan {
+            background: #fff1f1;
+            border: 1px solid #f1b5ba;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 20px;
+        }
+
+        .informasi-pembatalan strong {
+            color: #b02a37;
+        }
+
+        .peringatan-batal {
+            color: #b02a37;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 20px;
+        }
+
         @media print {
             body {
                 background: white;
@@ -80,6 +111,13 @@
 
     <div class="garis"></div>
 
+    {{-- STATUS PEMBATALAN --}}
+    @if($penjualan->tanggal_pembatalan)
+        <div class="status-batal">
+            TRANSAKSI DIBATALKAN
+        </div>
+    @endif
+
     <div class="row mb-4">
         <div class="col-md-6">
             <strong>Pelanggan</strong>
@@ -104,6 +142,7 @@
         </div>
     </div>
 
+    {{-- DETAIL BARANG --}}
     <div class="table-responsive">
         <table class="table table-bordered align-middle">
             <thead class="table-light">
@@ -136,8 +175,10 @@
         </table>
     </div>
 
+    {{-- RINGKASAN PEMBAYARAN --}}
     <div class="row justify-content-end">
         <div class="col-md-6">
+
             <div class="d-flex justify-content-between mb-2">
                 <span>Total Penjualan</span>
                 <strong>
@@ -145,45 +186,100 @@
                 </strong>
             </div>
 
-            <div class="d-flex justify-content-between mb-2">
-                <span>Sudah Dibayar</span>
-                <strong>
-                    Rp {{ number_format($penjualan->nominal_dibayar, 0, ',', '.') }}
-                </strong>
-            </div>
+            @if($penjualan->tanggal_pembatalan)
 
-            <div class="d-flex justify-content-between mb-2">
-                <span>Sisa Pembayaran</span>
-                <strong>
-                    Rp {{ number_format(
-                        $penjualan->total_penjualan - $penjualan->nominal_dibayar,
-                        0,
-                        ',',
-                        '.'
-                    ) }}
-                </strong>
-            </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Nominal Pembayaran Tercatat</span>
+                    <strong>
+                        Rp {{ number_format($penjualan->nominal_dibayar, 0, ',', '.') }}
+                    </strong>
+                </div>
 
-            <div class="d-flex justify-content-between mb-2">
-                <span>Metode Pembayaran</span>
-                <strong>{{ $penjualan->metode_pembayaran ?? '-' }}</strong>
-            </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Metode Pembayaran</span>
+                    <strong>{{ $penjualan->metode_pembayaran ?? '-' }}</strong>
+                </div>
 
-            <div class="d-flex justify-content-between">
-                <span>Status</span>
-                <strong>
-                    @if($penjualan->status_pembayaran === 'lunas')
-                        Lunas
-                    @elseif($penjualan->status_pembayaran === 'sebagian')
-                        Sebagian
-                    @else
-                        Belum Dibayar
-                    @endif
-                </strong>
-            </div>
+                <div class="d-flex justify-content-between">
+                    <span>Status Transaksi</span>
+                    <strong class="text-danger">Dibatalkan</strong>
+                </div>
+
+            @else
+
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Sudah Dibayar</span>
+                    <strong>
+                        Rp {{ number_format($penjualan->nominal_dibayar, 0, ',', '.') }}
+                    </strong>
+                </div>
+
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Sisa Pembayaran</span>
+                    <strong>
+                        Rp {{ number_format(
+                            $penjualan->total_penjualan - $penjualan->nominal_dibayar,
+                            0,
+                            ',',
+                            '.'
+                        ) }}
+                    </strong>
+                </div>
+
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Metode Pembayaran</span>
+                    <strong>{{ $penjualan->metode_pembayaran ?? '-' }}</strong>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <span>Status</span>
+                    <strong>
+                        @if($penjualan->status_pembayaran === 'lunas')
+                            Lunas
+                        @elseif($penjualan->status_pembayaran === 'sebagian')
+                            Sebagian
+                        @else
+                            Belum Dibayar
+                        @endif
+                    </strong>
+                </div>
+
+            @endif
+
         </div>
     </div>
 
+    {{-- INFORMASI PEMBATALAN --}}
+    @if($penjualan->tanggal_pembatalan)
+        <div class="informasi-pembatalan">
+            <div class="fw-bold text-danger mb-3">
+                INFORMASI PEMBATALAN
+            </div>
+
+            <div class="mb-2">
+                <strong>Tanggal Pembatalan:</strong>
+                <div>
+                    {{ $penjualan->tanggal_pembatalan->format('d/m/Y H:i') }}
+                </div>
+            </div>
+
+            <div class="mb-2">
+                <strong>Dibatalkan Oleh:</strong>
+                <div>
+                    {{ $penjualan->penggunaPembatalan->name ?? '-' }}
+                </div>
+            </div>
+
+            <div>
+                <strong>Alasan Pembatalan:</strong>
+                <div>
+                    {{ $penjualan->alasan_pembatalan ?? '-' }}
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- KETERANGAN --}}
     @if($penjualan->keterangan)
         <div class="mt-4">
             <strong>Keterangan:</strong>
@@ -193,15 +289,24 @@
 
     <div class="garis"></div>
 
-    <div class="text-center">
-        Terima kasih telah berbelanja di HSN Service Perfection.
-        <br>
-        Simpan nota ini sebagai bukti transaksi.
-    </div>
+    @if($penjualan->tanggal_pembatalan)
+        <div class="peringatan-batal">
+            NOTA INI TELAH DIBATALKAN
+            <div class="small fw-normal mt-2">
+                Dokumen ini hanya merupakan catatan historis transaksi
+                dan bukan bukti transaksi penjualan yang masih berlaku.
+            </div>
+        </div>
+    @else
+        <div class="text-center">
+            Terima kasih telah berbelanja di HSN Service Perfection.
+            <br>
+            Simpan nota ini sebagai bukti transaksi.
+        </div>
+    @endif
 
     <div class="text-center mt-4 tombol-cetak">
         <button onclick="window.print()" class="btn btn-success">
-            <i class="bi bi-printer"></i>
             Cetak Nota
         </button>
     </div>

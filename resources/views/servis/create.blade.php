@@ -168,12 +168,13 @@
                 <div class="col-md-6">
                     <label class="form-label fw-semibold">Tanggal Servis</label>
 
-                    <input type="date"
-                        name="tanggal_servis"
-                        class="form-control"
-                        max="{{ now()->toDateString() }}"
-                        value="{{ old('tanggal_servis', now()->toDateString()) }}"
-                        required>
+  <input type="date"
+    name="tanggal_servis"
+    class="form-control"
+    min="{{ now()->toDateString() }}"
+    max="{{ now()->toDateString() }}"
+    value="{{ old('tanggal_servis', now()->toDateString()) }}"
+    required>
                 </div>
 
                 <div class="col-md-6">

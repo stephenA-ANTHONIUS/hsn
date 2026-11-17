@@ -174,13 +174,14 @@
                             Tanggal Transaksi <span class="text-danger">*</span>
                         </label>
 
-                        <input type="date"
-                               name="tanggal_transaksi"
-                               id="tanggal_transaksi"
-                               class="form-control @error('tanggal_transaksi') is-invalid @enderror"
-                               value="{{ old('tanggal_transaksi', now()->format('Y-m-d')) }}"
-                               max="{{ now()->format('Y-m-d') }}"
-                               required>
+ <input type="date"
+       name="tanggal_transaksi"
+       id="tanggal_transaksi"
+       class="form-control @error('tanggal_transaksi') is-invalid @enderror"
+       value="{{ old('tanggal_transaksi', now()->toDateString()) }}"
+       min="{{ now()->toDateString() }}"
+       max="{{ now()->toDateString() }}"
+       required>
 
                         @error('tanggal_transaksi')
                             <div class="invalid-feedback">{{ $message }}</div>

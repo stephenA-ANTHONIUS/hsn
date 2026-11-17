@@ -69,11 +69,12 @@
                         <label class="form-label">Tanggal Penjualan</label>
 
                         <input type="date"
-                               name="tanggal_penjualan"
-                               class="form-control"
-                               value="{{ old('tanggal_penjualan', date('Y-m-d')) }}"
-                               max="{{ date('Y-m-d') }}"
-                               required>
+       name="tanggal_penjualan"
+       class="form-control"
+       value="{{ old('tanggal_penjualan', now()->toDateString()) }}"
+       min="{{ now()->toDateString() }}"
+       max="{{ now()->toDateString() }}"
+       required>
                     </div>
 
                     <div class="col-12">

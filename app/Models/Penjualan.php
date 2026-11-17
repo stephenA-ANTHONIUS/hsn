@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\RiwayatPerubahanPenjualan;
 
 class Penjualan extends Model
 {
@@ -21,12 +20,16 @@ class Penjualan extends Model
         'metode_pembayaran',
         'status_pembayaran',
         'keterangan',
+        'tanggal_pembatalan',
+        'dibatalkan_oleh',
+        'alasan_pembatalan',
     ];
 
     protected function casts(): array
     {
         return [
             'tanggal_penjualan' => 'date',
+            'tanggal_pembatalan' => 'datetime',
             'total_penjualan' => 'decimal:2',
             'nominal_dibayar' => 'decimal:2',
         ];
@@ -40,6 +43,11 @@ class Penjualan extends Model
     public function pengguna(): BelongsTo
     {
         return $this->belongsTo(User::class, 'pengguna_id');
+    }
+
+    public function penggunaPembatalan(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'dibatalkan_oleh');
     }
 
     public function detailPenjualan(): HasMany
@@ -59,11 +67,12 @@ class Penjualan extends Model
             'penjualan_id'
         );
     }
+
     public function riwayatPerubahan(): HasMany
-{
-    return $this->hasMany(
-        RiwayatPerubahanPenjualan::class,
-        'penjualan_id'
-    );
-}
+    {
+        return $this->hasMany(
+            RiwayatPerubahanPenjualan::class,
+            'penjualan_id'
+        );
+    }
 }

@@ -173,11 +173,13 @@ class ServisController extends Controller
             'tanggal_servis' => [
                 'required',
                 'date',
-                'before_or_equal:today',
+                'date_equals:' . now()->toDateString(),
             ],
             'nama_teknisi' => ['nullable', 'string', 'max:150'],
             'keluhan' => ['required', 'string'],
             'keterangan' => ['nullable', 'string'],
+        ], [
+            'tanggal_servis.date_equals' => 'Tanggal servis harus menggunakan tanggal hari ini.',
         ]);
 
         $prefix = $this->routePrefix();
@@ -222,15 +224,15 @@ class ServisController extends Controller
             'pendapatan.pengguna',
         ]);
 
-$barang = Barang::with([
-    'satuan',
-    'hadiah' => function ($query) {
-        $query->where('hadiah.status', 'aktif');
-    },
-])
-    ->where('status', 'aktif')
-    ->orderBy('nama_barang')
-    ->get();
+        $barang = Barang::with([
+            'satuan',
+            'hadiah' => function ($query) {
+                $query->where('hadiah.status', 'aktif');
+            },
+        ])
+            ->where('status', 'aktif')
+            ->orderBy('nama_barang')
+            ->get();
 
         return view('servis.show', [
             'servis' => $servis,
@@ -518,6 +520,7 @@ $barang = Barang::with([
             if ($statusLama === 'proses' && $statusBaru === 'selesai') {
                 $servis->update([
                     'status_perbaikan' => 'selesai',
+                    'tanggal_selesai' => now()->toDateString(),
                 ]);
 
                 return;

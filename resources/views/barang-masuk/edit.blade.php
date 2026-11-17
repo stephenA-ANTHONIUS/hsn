@@ -1,4 +1,3 @@
-
 @extends('layouts.app')
 
 @section('title', 'Edit Barang Masuk')
@@ -90,6 +89,8 @@
                                name="tanggal_masuk"
                                id="tanggal_masuk"
                                class="form-control @error('tanggal_masuk') is-invalid @enderror"
+                               min="{{ now()->toDateString() }}"
+                               max="{{ now()->toDateString() }}"
                                value="{{ old('tanggal_masuk', \Carbon\Carbon::parse($barangMasuk->tanggal_masuk)->format('Y-m-d')) }}"
                                required>
 

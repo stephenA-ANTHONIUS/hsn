@@ -222,12 +222,28 @@
                             <span class="text-danger">*</span>
                         </label>
 
-                        <input type="date"
-                               name="tanggal_penyerahan"
-                               class="form-control"
-                               value="{{ old('tanggal_penyerahan', $penyerahanHadiah->tanggal_penyerahan->format('Y-m-d')) }}"
-                               max="{{ now()->format('Y-m-d') }}"
-                               required>
+@if($penyerahanHadiah->tanggal_penyerahan->isToday())
+    <input type="date"
+           name="tanggal_penyerahan"
+           class="form-control"
+           value="{{ old('tanggal_penyerahan', now()->toDateString()) }}"
+           min="{{ now()->toDateString() }}"
+           max="{{ now()->toDateString() }}"
+           required>
+@else
+    <input type="text"
+           class="form-control"
+           value="{{ $penyerahanHadiah->tanggal_penyerahan->format('d/m/Y') }}"
+           readonly>
+
+    <input type="hidden"
+           name="tanggal_penyerahan"
+           value="{{ $penyerahanHadiah->tanggal_penyerahan->format('Y-m-d') }}">
+
+    <small class="text-muted">
+        Tanggal transaksi lama dipertahankan dan tidak dapat diubah.
+    </small>
+@endif
                     </div>
 
                     <div class="col-md-6 mb-3">

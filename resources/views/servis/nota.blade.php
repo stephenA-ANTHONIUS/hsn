@@ -222,6 +222,12 @@
                     {{ $servis->tanggal_servis->format('d/m/Y') }}
                 </div>
             </div>
+            <div class="info-item">
+    <div class="label">Tanggal Selesai</div>
+    <div class="value">
+        {{ $servis->tanggal_selesai?->format('d/m/Y') ?? 'Belum selesai' }}
+    </div>
+</div>
 
             <div class="info-item">
                 <div class="label">Nama Pelanggan</div>

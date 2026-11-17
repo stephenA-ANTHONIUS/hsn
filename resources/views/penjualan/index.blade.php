@@ -42,6 +42,14 @@
         </div>
     @endif
 
+    @if($errors->any())
+        <div class="alert alert-danger">
+            @foreach($errors->all() as $error)
+                <div>{{ $error }}</div>
+            @endforeach
+        </div>
+    @endif
+
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
             <form method="GET"
@@ -88,6 +96,7 @@
                     <button class="btn btn-success flex-fill">
                         Cari
                     </button>
+
                     <a href="{{ route($prefix . '.penjualan.index') }}"
                        class="btn btn-outline-secondary">
                         Reset
@@ -109,7 +118,7 @@
                             <th>Pelanggan</th>
                             <th>Jumlah Jenis Barang</th>
                             <th>Total Penjualan</th>
-                            <th>Status Pembayaran</th>
+                            <th>Status</th>
                             <th>Petugas</th>
                             <th>Aksi</th>
                         </tr>
@@ -143,7 +152,19 @@
                                 </td>
 
                                 <td>
-                                    @if($item->status_pembayaran === 'lunas')
+                                    @if($item->tanggal_pembatalan)
+                                        <span class="badge bg-danger">
+                                            Dibatalkan
+                                        </span>
+
+                                        <div class="small text-muted mt-1">
+                                            {{ $item->tanggal_pembatalan->format('d/m/Y H:i') }}
+                                        </div>
+
+                                        <div class="small text-muted">
+                                            Oleh: {{ $item->penggunaPembatalan->name ?? '-' }}
+                                        </div>
+                                    @elseif($item->status_pembayaran === 'lunas')
                                         <span class="badge bg-success">Lunas</span>
                                     @elseif($item->status_pembayaran === 'sebagian')
                                         <span class="badge bg-warning text-dark">Sebagian</span>
@@ -159,28 +180,58 @@
                                 <td>
                                     <div class="d-flex flex-wrap gap-1">
 
-                                        @if($item->tanggal_penjualan->isToday())
+                                        @if(!$item->tanggal_pembatalan && $item->tanggal_penjualan->isToday())
                                             <a href="{{ route($prefix . '.penjualan.edit', $item->id) }}"
-                                            class="btn btn-sm btn-outline-primary">
+                                               class="btn btn-sm btn-outline-primary">
                                                 <i class="bi bi-pencil-square"></i>
                                                 Edit
                                             </a>
                                         @endif
 
                                         <a href="{{ route($prefix . '.penjualan.riwayat', $item->id) }}"
-                                        class="btn btn-sm btn-outline-secondary">
+                                           class="btn btn-sm btn-outline-secondary">
                                             <i class="bi bi-clock-history"></i>
                                             Riwayat
                                         </a>
 
                                         <a href="{{ route($prefix . '.penjualan.nota', $item->id) }}"
-                                        class="btn btn-sm btn-outline-success"
-                                        target="_blank">
+                                           class="btn btn-sm btn-outline-success"
+                                           target="_blank">
                                             <i class="bi bi-printer"></i>
                                             Nota
                                         </a>
 
+                                        @if(!$item->tanggal_pembatalan && $item->penyerahan_hadiah_count == 0)
+                                            <form action="{{ route($prefix . '.penjualan.batalkan', $item->id) }}"
+                                                  method="POST">
+                                                @csrf
+                                                @method('PATCH')
+
+                                                <input type="hidden"
+                                                       name="alasan_pembatalan"
+                                                       value="">
+
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-danger"
+                                                        onclick="mintaAlasanPembatalan(this)">
+                                                    <i class="bi bi-x-circle"></i>
+                                                    Batalkan
+                                                </button>
+                                            </form>
+                                        @elseif(!$item->tanggal_pembatalan)
+                                            <span class="small text-muted align-self-center">
+                                                Hadiah sudah diserahkan
+                                            </span>
+                                        @endif
+
                                     </div>
+
+                                    @if($item->tanggal_pembatalan)
+                                        <div class="small text-danger mt-2"
+                                             style="max-width:220px;">
+                                            Alasan: {{ $item->alasan_pembatalan }}
+                                        </div>
+                                    @endif
                                 </td>
                             </tr>
                         @empty
@@ -201,4 +252,41 @@
         </div>
     </div>
 </div>
+
+<script>
+function mintaAlasanPembatalan(button) {
+    const alasan = prompt(
+        'Masukkan alasan pembatalan transaksi penjualan:'
+    );
+
+    if (alasan === null) {
+        return;
+    }
+
+    if (alasan.trim() === '') {
+        alert('Alasan pembatalan wajib diisi.');
+        return;
+    }
+
+    if (alasan.trim().length > 2000) {
+        alert('Alasan pembatalan maksimal 2.000 karakter.');
+        return;
+    }
+
+    const konfirmasi = confirm(
+        'Apakah Anda yakin ingin membatalkan transaksi ini? Stok barang akan dikembalikan.'
+    );
+
+    if (!konfirmasi) {
+        return;
+    }
+
+    const form = button.closest('form');
+
+    form.querySelector('[name="alasan_pembatalan"]').value =
+        alasan.trim();
+
+    form.submit();
+}
+</script>
 @endsection

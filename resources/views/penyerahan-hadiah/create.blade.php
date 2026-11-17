@@ -167,12 +167,13 @@
                             Tanggal Penyerahan <span class="text-danger">*</span>
                         </label>
 
-                        <input type="date"
-                               name="tanggal_penyerahan"
-                               class="form-control"
-                               value="{{ old('tanggal_penyerahan', now()->format('Y-m-d')) }}"
-                               max="{{ now()->format('Y-m-d') }}"
-                               required>
+<input type="date"
+       name="tanggal_penyerahan"
+       class="form-control"
+       value="{{ old('tanggal_penyerahan', now()->toDateString()) }}"
+       min="{{ now()->toDateString() }}"
+       max="{{ now()->toDateString() }}"
+       required>
                     </div>
 
                     <div class="col-md-6 mb-3">

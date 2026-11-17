@@ -15,6 +15,7 @@ class Servis extends Model
         'pengguna_id',
         'nomor_nota',
         'tanggal_servis',
+        'tanggal_selesai',
         'nama_teknisi',
         'keluhan',
         'hasil_pemeriksaan',
@@ -30,6 +31,7 @@ class Servis extends Model
     {
         return [
             'tanggal_servis' => 'date',
+            'tanggal_selesai' => 'date',
             'biaya_jasa' => 'decimal:2',
             'total_biaya' => 'decimal:2',
             'nominal_dibayar' => 'decimal:2',

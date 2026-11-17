@@ -94,7 +94,7 @@ class TransaksiStokHadiahController extends Controller
             'tanggal_transaksi' => [
                 'required',
                 'date',
-                'before_or_equal:today',
+                'date_equals:' . now()->toDateString(),
             ],
             'keterangan' => [
                 'nullable',
@@ -109,8 +109,8 @@ class TransaksiStokHadiahController extends Controller
             'jumlah.required' => 'Jumlah harus diisi.',
             'jumlah.min' => 'Jumlah tidak boleh kurang dari 0.',
             'tanggal_transaksi.required' => 'Tanggal transaksi harus diisi.',
-            'tanggal_transaksi.before_or_equal' =>
-                'Tanggal transaksi tidak boleh melebihi hari ini.',
+            'tanggal_transaksi.date_equals' =>
+                'Tanggal transaksi harus menggunakan tanggal hari ini.',
         ]);
 
         if (
@@ -137,11 +137,11 @@ class TransaksiStokHadiahController extends Controller
             $jumlah = (int) $validated['jumlah'];
 
             if ($validated['jenis_transaksi'] === 'masuk') {
-    $stokBaru = $stokSebelumnya + $jumlah;
-} else {
-    // Penyesuaian menggunakan jumlah stok fisik terbaru.
-    $stokBaru = $jumlah;
-}
+                $stokBaru = $stokSebelumnya + $jumlah;
+            } else {
+                // Penyesuaian menggunakan jumlah stok fisik terbaru.
+                $stokBaru = $jumlah;
+            }
 
             $hadiah->update([
                 'stok' => $stokBaru,

@@ -27,53 +27,53 @@ class BarangMasukController extends Controller
     }
 
     /**
- * Mengambil snapshot lengkap transaksi barang masuk.
- */
-private function snapshotBarangMasuk(BarangMasuk $barangMasuk): array
-{
-    $barangMasuk->loadMissing([
-        'pemasok',
-        'detail.barang',
-    ]);
+     * Mengambil snapshot lengkap transaksi barang masuk.
+     */
+    private function snapshotBarangMasuk(BarangMasuk $barangMasuk): array
+    {
+        $barangMasuk->loadMissing([
+            'pemasok',
+            'detail.barang',
+        ]);
 
-    return [
-        'barang_masuk_id' => $barangMasuk->id,
-        'nomor_nota' => $barangMasuk->nomor_nota,
-        'tanggal_masuk' => $barangMasuk->tanggal_masuk->format('Y-m-d'),
-        'pemasok' => $barangMasuk->pemasok->nama_pemasok ?? '-',
-        'keterangan' => $barangMasuk->keterangan,
+        return [
+            'barang_masuk_id' => $barangMasuk->id,
+            'nomor_nota' => $barangMasuk->nomor_nota,
+            'tanggal_masuk' => $barangMasuk->tanggal_masuk->format('Y-m-d'),
+            'pemasok' => $barangMasuk->pemasok->nama_pemasok ?? '-',
+            'keterangan' => $barangMasuk->keterangan,
 
-        'detail' => $barangMasuk->detail->map(function ($detail) {
-            return [
-                'barang_id' => $detail->barang_id,
-                'kode_barang' => $detail->barang->kode_barang ?? '-',
-                'nama_barang' => $detail->barang->nama_barang ?? '-',
-                'jumlah' => (int) $detail->jumlah,
-                'harga_modal' => $detail->harga_modal,
-                'harga_jual' => $detail->harga_jual,
-            ];
-        })->values()->toArray(),
-    ];
-}
+            'detail' => $barangMasuk->detail->map(function ($detail) {
+                return [
+                    'barang_id' => $detail->barang_id,
+                    'kode_barang' => $detail->barang->kode_barang ?? '-',
+                    'nama_barang' => $detail->barang->nama_barang ?? '-',
+                    'jumlah' => (int) $detail->jumlah,
+                    'harga_modal' => $detail->harga_modal,
+                    'harga_jual' => $detail->harga_jual,
+                ];
+            })->values()->toArray(),
+        ];
+    }
 
-/**
- * Mencatat perubahan transaksi barang masuk.
- */
-private function catatRiwayatBarangMasuk(
-    string $jenisPerubahan,
-    ?array $dataSebelum,
-    ?array $dataSesudah,
-    string $keterangan
-): void {
-    RiwayatPerubahanBarang::create([
-        'barang_id' => null,
-        'pengguna_id' => Auth::id(),
-        'jenis_perubahan' => $jenisPerubahan,
-        'data_sebelum' => $dataSebelum,
-        'data_sesudah' => $dataSesudah,
-        'keterangan' => $keterangan,
-    ]);
-}
+    /**
+     * Mencatat perubahan transaksi barang masuk.
+     */
+    private function catatRiwayatBarangMasuk(
+        string $jenisPerubahan,
+        ?array $dataSebelum,
+        ?array $dataSesudah,
+        string $keterangan
+    ): void {
+        RiwayatPerubahanBarang::create([
+            'barang_id' => null,
+            'pengguna_id' => Auth::id(),
+            'jenis_perubahan' => $jenisPerubahan,
+            'data_sebelum' => $dataSebelum,
+            'data_sesudah' => $dataSesudah,
+            'keterangan' => $keterangan,
+        ]);
+    }
 
     /**
      * Memeriksa apakah transaksi masih boleh diedit.
@@ -148,7 +148,7 @@ private function catatRiwayatBarangMasuk(
             'tanggal_masuk' => [
                 'required',
                 'date',
-                'after_or_equal:today',
+                'date_equals:' . now()->toDateString(),
             ],
             'keterangan' => [
                 'nullable',
@@ -185,7 +185,9 @@ private function catatRiwayatBarangMasuk(
             ];
         }
 
-        $validated = $request->validate($rules);
+        $validated = $request->validate($rules, [
+            'tanggal_masuk.date_equals' => 'Tanggal barang masuk harus menggunakan tanggal hari ini.',
+        ]);
 
         DB::transaction(function () use ($validated, $isKepalaToko) {
 
@@ -249,20 +251,21 @@ private function catatRiwayatBarangMasuk(
                     'keterangan' => 'Barang masuk dengan nota ' . $transaksi->nomor_nota,
                 ]);
             }
-            // Mencatat transaksi barang masuk ke riwayat perubahan.
-$transaksi->load([
-    'pemasok',
-    'detail.barang',
-]);
 
-$this->catatRiwayatBarangMasuk(
-    'barang_masuk_ditambahkan',
-    null,
-    $this->snapshotBarangMasuk($transaksi),
-    'Transaksi barang masuk dengan nota '
-        . $transaksi->nomor_nota
-        . ' berhasil ditambahkan.'
-);
+            // Mencatat transaksi barang masuk ke riwayat perubahan.
+            $transaksi->load([
+                'pemasok',
+                'detail.barang',
+            ]);
+
+            $this->catatRiwayatBarangMasuk(
+                'barang_masuk_ditambahkan',
+                null,
+                $this->snapshotBarangMasuk($transaksi),
+                'Transaksi barang masuk dengan nota '
+                    . $transaksi->nomor_nota
+                    . ' berhasil ditambahkan.'
+            );
         });
 
         return redirect()
@@ -325,7 +328,7 @@ $this->catatRiwayatBarangMasuk(
             'tanggal_masuk' => [
                 'required',
                 'date',
-                'after_or_equal:today',
+                'date_equals:' . now()->toDateString(),
             ],
             'keterangan' => [
                 'nullable',
@@ -362,7 +365,9 @@ $this->catatRiwayatBarangMasuk(
             ];
         }
 
-        $validated = $request->validate($rules);
+        $validated = $request->validate($rules, [
+            'tanggal_masuk.date_equals' => 'Tanggal barang masuk harus menggunakan tanggal hari ini.',
+        ]);
 
         DB::transaction(function () use ($validated, $barangMasuk, $isKepalaToko) {
 
@@ -371,20 +376,20 @@ $this->catatRiwayatBarangMasuk(
                 ->lockForUpdate()
                 ->firstOrFail();
 
-// Memeriksa kembali tanggal transaksi.
-$this->pastikanTransaksiBisaDiedit($barangMasuk);
+            // Memeriksa kembali tanggal transaksi.
+            $this->pastikanTransaksiBisaDiedit($barangMasuk);
 
-// Memuat seluruh data transaksi sebelum perubahan.
-$barangMasuk->load([
-    'pemasok',
-    'detail.barang',
-]);
+            // Memuat seluruh data transaksi sebelum perubahan.
+            $barangMasuk->load([
+                'pemasok',
+                'detail.barang',
+            ]);
 
-// Mengambil snapshot sebelum perubahan.
-$dataSebelum = $this->snapshotBarangMasuk($barangMasuk);
+            // Mengambil snapshot sebelum perubahan.
+            $dataSebelum = $this->snapshotBarangMasuk($barangMasuk);
 
-// Mengambil detail transaksi sebelumnya.
-$detailLama = $barangMasuk->detail()->get();
+            // Mengambil detail transaksi sebelumnya.
+            $detailLama = $barangMasuk->detail()->get();
 
             // Menyimpan harga modal lama berdasarkan barang.
             $hargaModalLama = $detailLama
@@ -445,7 +450,7 @@ $detailLama = $barangMasuk->detail()->get();
                 // Mencegah stok menjadi minus.
                 if ($stokSetelahEdit < 0) {
                     throw ValidationException::withMessages([
-                        'detail' => 'Jumlah barang tidak dapat dikurangi karena sebagian stok sudah digunakan pada transaksi lain.',
+                        'detail' => 'Jumlah barang tidak dapat dikurangi karena sebagian stok sudah digunakanpada transaksi lain.',
                     ]);
                 }
 
@@ -512,28 +517,29 @@ $detailLama = $barangMasuk->detail()->get();
                     'harga_jual' => $item['harga_jual'],
                 ]);
             }
+
             // Memuat ulang transaksi dengan detail terbaru.
-$barangMasuk->refresh();
+            $barangMasuk->refresh();
 
-$barangMasuk->load([
-    'pemasok',
-    'detail.barang',
-]);
+            $barangMasuk->load([
+                'pemasok',
+                'detail.barang',
+            ]);
 
-// Mengambil snapshot sesudah perubahan.
-$dataSesudah = $this->snapshotBarangMasuk($barangMasuk);
+            // Mengambil snapshot sesudah perubahan.
+            $dataSesudah = $this->snapshotBarangMasuk($barangMasuk);
 
-// Catat jika terdapat perubahan informasi transaksi.
-if ($dataSebelum !== $dataSesudah) {
-    $this->catatRiwayatBarangMasuk(
-        'barang_masuk_diperbarui',
-        $dataSebelum,
-        $dataSesudah,
-        'Transaksi barang masuk dengan nota '
-            . $barangMasuk->nomor_nota
-            . ' diperbarui.'
-    );
-}
+            // Catat jika terdapat perubahan informasi transaksi.
+            if ($dataSebelum !== $dataSesudah) {
+                $this->catatRiwayatBarangMasuk(
+                    'barang_masuk_diperbarui',
+                    $dataSebelum,
+                    $dataSesudah,
+                    'Transaksi barang masuk dengan nota '
+                        . $barangMasuk->nomor_nota
+                        . ' diperbarui.'
+                );
+            }
         });
 
         return redirect()

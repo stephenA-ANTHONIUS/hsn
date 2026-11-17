@@ -42,11 +42,13 @@
 
                     <div class="col-md-6">
                         <label class="form-label">Tanggal Masuk <span class="text-danger">*</span></label>
-                                <input type="date" name="tanggal_masuk"
-                        class="form-control"
-                        min="{{ date('Y-m-d') }}"
-                        value="{{ old('tanggal_masuk', date('Y-m-d')) }}"
-                        required>
+                        <input type="date"
+                               name="tanggal_masuk"
+                               class="form-control"
+                               min="{{ now()->toDateString() }}"
+                               max="{{ now()->toDateString() }}"
+                               value="{{ old('tanggal_masuk', now()->toDateString()) }}"
+                               required>
                     </div>
 
                     <div class="col-12">

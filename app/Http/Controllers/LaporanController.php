@@ -309,28 +309,44 @@ class LaporanController extends Controller
         );
 
         $penjualan = $queryPenjualan->get();
+$jumlahPenjualanAktif = $penjualan
+    ->filter(fn ($item) => $item->tanggal_pembatalan === null)
+    ->count();
 
+$jumlahPenjualanDibatalkan = $penjualan
+    ->filter(fn ($item) => $item->tanggal_pembatalan !== null)
+    ->count();
         foreach ($penjualan as $item) {
-            $rincian = $item->detailPenjualan
-                ->map(function ($detail) {
-                    return ($detail->barang?->nama_barang ?? 'Barang')
-                        . ' (' . $detail->jumlah . ' unit)';
-                })
-                ->implode(', ');
+    $rincian = $item->detailPenjualan
+        ->map(function ($detail) {
+            return ($detail->barang?->nama_barang ?? 'Barang')
+                . ' (' . $detail->jumlah . ' unit)';
+        })
+        ->implode(', ');
 
-            $baris[] = [
-                '_sort' => $item->tanggal_penjualan->format('Y-m-d')
-                    . ' ' . ($item->created_at?->format('H:i:s') ?? ''),
-                'tanggal' => $item->tanggal_penjualan->format('d-m-Y'),
-                'jenis' => 'Penjualan langsung',
-                'nomor_nota' => $item->nomor_nota,
-                'pelanggan' => $item->pelanggan?->nama_pelanggan
-                    ?? 'Pelanggan umum',
-                'rincian' => $rincian ?: '-',
-                'nilai' => $this->rupiah($item->total_penjualan),
-                'petugas' => $item->pengguna?->name ?? '-',
-            ];
-        }
+    // Memeriksa apakah transaksi sudah dibatalkan.
+    $dibatalkan = $item->tanggal_pembatalan !== null;
+
+    // Menambahkan alasan pembatalan ke rincian.
+    if ($dibatalkan) {
+        $rincian .= ' | Dibatalkan: ' . $item->alasan_pembatalan;
+    }
+
+    $baris[] = [
+        '_sort' => $item->tanggal_penjualan->format('Y-m-d')
+            . ' ' . ($item->created_at?->format('H:i:s') ?? ''),
+        'tanggal' => $item->tanggal_penjualan->format('d-m-Y'),
+        'jenis' => $dibatalkan
+            ? 'Penjualan langsung (Dibatalkan)'
+            : 'Penjualan langsung',
+        'nomor_nota' => $item->nomor_nota,
+        'pelanggan' => $item->pelanggan?->nama_pelanggan
+            ?? 'Pelanggan umum',
+        'rincian' => $rincian ?: '-',
+        'nilai' => $this->rupiah($item->total_penjualan),
+        'petugas' => $item->pengguna?->name ?? '-',
+    ];
+}
 
         // Transaksi servis.
         $queryServis = Servis::with([
@@ -438,10 +454,14 @@ class LaporanController extends Controller
             'baris' => $baris,
             'periode' => $periode,
             'ringkasan' => [
-                [
-                    'label' => 'Penjualan Langsung',
-                    'nilai' => number_format($penjualan->count(), 0, ',', '.') . ' transaksi',
-                ],
+[
+    'label' => 'Penjualan Aktif',
+    'nilai' => number_format($jumlahPenjualanAktif, 0, ',', '.') . ' transaksi',
+],
+[
+    'label' => 'Penjualan Dibatalkan',
+    'nilai' => number_format($jumlahPenjualanDibatalkan, 0, ',', '.') . ' transaksi',
+],
                 [
                     'label' => 'Transaksi Servis',
                     'nilai' => number_format($servis->count(), 0, ',', '.') . ' transaksi',
@@ -487,7 +507,8 @@ class LaporanController extends Controller
     {
         $periode = $this->validasiPeriode($request);
 
-        $queryPenjualan = Penjualan::query();
+        $queryPenjualan = Penjualan::query()
+    ->whereNull('tanggal_pembatalan');
 
         $this->terapkanPeriode(
             $queryPenjualan,
